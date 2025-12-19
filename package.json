@@ -1,0 +1,53 @@
+{
+  "name": "@thaon/strapi-plugin-semantic-search",
+  "version": "1.0.0",
+  "description": "A Strapi plugin that adds semantic search capabilities using OpenRouter embeddings",
+  "main": "strapi-server.js",
+  "strapi": {
+    "kind": "plugin",
+    "displayName": "Semantic Search",
+    "name": "semantic-search",
+    "description": "Add semantic search to your Strapi application"
+  },
+  "keywords": [
+    "strapi",
+    "plugin",
+    "semantic-search",
+    "search",
+    "embeddings",
+    "openrouter",
+    "ai"
+  ],
+  "author": {
+    "name": "Gabriele Maddaloni",
+    "email": "admin@naebother.software"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/thaon/strapi-plugin-semantic-search.git"
+  },
+  "bugs": {
+    "url": "https://github.com/thaon/strapi-plugin-semantic-search/issues"
+  },
+  "homepage": "https://github.com/thaon/strapi-plugin-semantic-search#readme",
+  "engines": {
+    "node": ">=14.19.0",
+    "npm": ">=6.0.0"
+  },
+  "dependencies": {
+    "@openrouter/sdk": "latest"
+  },
+  "peerDependencies": {
+    "@strapi/strapi": "^4.0.0"
+  },
+  "files": [
+    "server/**/*",
+    "strapi-server.js",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  }
+}

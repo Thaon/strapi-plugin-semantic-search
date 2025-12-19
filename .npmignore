@@ -1,0 +1,49 @@
+# Dependencies
+node_modules
+package-lock.json
+
+# Development files
+.git
+.gitignore
+.nyc_output
+coverage
+.cache
+.tmp
+dist
+
+# Environment files
+.env
+.env.*
+
+# IDE files
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+logs
+*.log
+
+# Test files
+test
+tests
+__tests__
+
+# Documentation (excluding README)
+docs
+*.md
+!README.md
+
+# Config files (excluding package.json)
+config
+*.config.js
+*.config.ts
+
+# Build artifacts
+build
+lib
