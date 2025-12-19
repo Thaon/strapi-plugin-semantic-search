@@ -252,7 +252,7 @@ The `querySearch` function performs semantic search using these steps:
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/strapi-plugin-semantic-search.git
+git clone https://github.com/thaon/strapi-plugin-semantic-search.git
 
 # Install dependencies
 cd strapi-plugin-semantic-search
@@ -281,7 +281,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 If you encounter any issues or have questions:
 
-1. Check the [Issues](https://github.com/yourusername/strapi-plugin-semantic-search/issues) page
+1. Check the [Issues](https://github.com/thaon/strapi-plugin-semantic-search/issues) page
 2. Create a new issue with detailed information
 3. Include your Strapi version and plugin version
 
