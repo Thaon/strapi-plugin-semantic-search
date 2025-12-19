@@ -1,6 +1,6 @@
 {
   "name": "@thaon/strapi-plugin-semantic-search",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "A Strapi plugin that adds semantic search capabilities using OpenRouter embeddings",
   "main": "strapi-server.js",
   "strapi": {
