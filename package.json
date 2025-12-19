@@ -39,7 +39,7 @@
     "@openrouter/sdk": "latest"
   },
   "peerDependencies": {
-    "@strapi/strapi": "^4.0.0"
+    "@strapi/strapi": ">=4.0.0"
   },
   "files": [
     "server/**/*",
