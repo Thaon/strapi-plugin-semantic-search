@@ -44,10 +44,10 @@ SITE_NAME=YourSiteName
 Add the plugin to your `config/plugins.js` file:
 
 ```javascript
-module.exports = ({ env }) => ({
-  // ... other plugins
-  "strapi-plugin-semantic-search": {
+module.exports = () => ({
+  "semantic-search": {
     enabled: true,
+    resolve: "@thaon/strapi-plugin-semantic-search",
   },
 });
 ```
