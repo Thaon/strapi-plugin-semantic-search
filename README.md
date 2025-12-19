@@ -54,51 +54,124 @@ module.exports = ({ env }) => ({
 
 ## Usage
 
-### 1. Index Content
+The plugin provides two main services: **indexing** and **searching**. Both must be called manually through your application code or API endpoints.
 
-Once the plugin is installed and configured, you can index your content using the API:
+### 1. Index Documents
 
-```bash
-# Index all content
-POST /api/semantic-search/index
+Before searching, you must manually index your documents using the indexer service.
 
-# Index specific content type
-POST /api/semantic-search/index
-Content-Type: application/json
+#### Single Field Indexing
+
+Index a specific field from a document:
+
+```javascript
+// In your controller or service
+const indexer = strapi.plugin("semantic-search").service("indexer");
+
+await indexer.indexDocument(
+  contentType, // e.g., "api::doc.doc"
+  documentId, // Document ID to index
+  field, // Field name to index (e.g., "content")
+  titleField, // Optional: field to use as title (default: "title")
+  ownerId // Required: user ID for ownership filtering
+);
+```
+
+**Parameters:**
+
+- `contentType` (string): The content type UID (e.g., `api::doc.doc`)
+- `documentId` (string): The document ID to index
+- `field` (string): The field containing text to index (e.g., `content`)
+- `titleField` (string, optional): Field to use as document title reference (default: `title`)
+- `ownerId` (number): User ID for ownership-based filtering
+
+**Response:**
+
+```json
 {
-  "contentType": "api::article.article"
+  "success": true,
+  "documentId": "123",
+  "contentType": "api::doc.doc",
+  "chunksCreated": 5
 }
 ```
+
+#### Multi-Field Indexing
+
+Index multiple fields from a document:
+
+```javascript
+const indexer = strapi.plugin("semantic-search").service("indexer");
+
+await indexer.indexDocumentFields(
+  contentType, // e.g., "api::doc.doc"
+  documentId, // Document ID to index
+  fields, // Array of field names (e.g., ["title", "content"])
+  titleField, // Optional: field to use as title
+  ownerId // Required: user ID for ownership filtering
+);
+```
+
+**Parameters:**
+
+- `contentType` (string): The content type UID
+- `documentId` (string): The document ID to index
+- `fields` (string[]): Array of field names to combine and index
+- `titleField` (string, optional): Field to use as document title (default: `title`)
+- `ownerId` (number): User ID for ownership-based filtering
 
 ### 2. Perform Semantic Search
 
-```bash
-# Search content
-POST /api/semantic-search/search
-Content-Type: application/json
-{
-  "query": "your search query here",
-  "limit": 10,
-  "threshold": 0.7
-}
+After indexing, search indexed documents using the search service.
+
+```javascript
+const searchService = strapi.plugin("semantic-search").service("search");
+
+const results = await searchService.querySearch(query, options);
 ```
 
-### 3. API Endpoints
+**Parameters:**
 
-#### Index Content
+- `query` (string): The search query
+- `options` (object):
+  - `ownerId` (number, required): User ID to filter results by ownership
+  - `limit` (number, optional): Maximum results to return (default: 5)
+  - `threshold` (number, optional): Similarity threshold 0-1 (default: 0.5)
+  - `contentType` (string, optional): Filter by specific content type
 
-- **POST** `/api/semantic-search/index`
-- Indexes content for semantic search
-- Optional: `contentType` parameter to index specific content type
+**Response:**
 
-#### Search Content
+```json
+[
+  {
+    "documentId": "123",
+    "title": "Document Title",
+    "textSnippet": "Relevant excerpt from the document...",
+    "fullContent": "Complete document content...",
+    "contentType": "api::doc.doc",
+    "score": 0.85
+  }
+]
+```
 
-- **POST** `/api/semantic-search/search`
-- Performs semantic search on indexed content
-- Parameters:
-  - `query` (string): Search query
-  - `limit` (number, optional): Maximum results to return (default: 10)
-  - `threshold` (number, optional): Similarity threshold (default: 0.7)
+### 3. API Endpoints Example
+
+If you expose these services via API endpoints:
+
+```bash
+# Index a document
+POST /api/semantic-search/index
+Content-Type: application/json
+{
+  "contentType": "api::doc.doc",
+  "documentId": "123",
+  "field": "content",
+  "ownerId": 1
+}
+
+# Search indexed documents
+GET /api/semantic-search/search?query=your+search+query&limit=10&threshold=0.5
+```
 
 ## Configuration
 
