@@ -73,7 +73,7 @@ await indexer.indexDocument(
   documentId, // Document ID to index
   field, // Field name to index (e.g., "content")
   titleField, // Optional: field to use as title (default: "title")
-  ownerId // Required: user ID for ownership filtering
+  ownerId, // Required: user ID for ownership filtering
 );
 ```
 
@@ -108,7 +108,7 @@ await indexer.indexDocumentFields(
   documentId, // Document ID to index
   fields, // Array of field names (e.g., ["title", "content"])
   titleField, // Optional: field to use as title
-  ownerId // Required: user ID for ownership filtering
+  ownerId, // Required: user ID for ownership filtering
 );
 ```
 
@@ -175,17 +175,130 @@ GET /api/semantic-search/search?query=your+search+query&limit=10&threshold=0.5
 
 ## Configuration
 
-The plugin can be configured through environment variables:
+The plugin can be configured through environment variables or by overriding the configuration in your Strapi project.
 
-| Variable               | Description                  | Default                         |
-| ---------------------- | ---------------------------- | ------------------------------- |
-| `OPENROUTER_API_KEY`   | Your OpenRouter API key      | Required                        |
-| `OPENROUTER_MODEL`     | Embedding model to use       | `openai/text-embedding-3-small` |
-| `SITE_URL`             | Your Strapi site URL         | `http://localhost:1337`         |
-| `SITE_NAME`            | Your site name               | `StrapiSemanticSearch`          |
-| `CHUNK_SIZE`           | Document chunk size          | `1000`                          |
-| `CHUNK_OVERLAP`        | Chunk overlap size           | `150`                           |
-| `SIMILARITY_THRESHOLD` | Default similarity threshold | `0.5`                           |
+### Method 1: Environment Variables (Recommended)
+
+Add the following environment variables to your `.env` file:
+
+| Variable             | Description             | Default                         |
+| -------------------- | ----------------------- | ------------------------------- |
+| `OPENROUTER_API_KEY` | Your OpenRouter API key | Required                        |
+| `OPENROUTER_MODEL`   | Embedding model to use  | `openai/text-embedding-3-small` |
+| `SITE_URL`           | Your Strapi site URL    | `http://localhost:1337`         |
+| `SITE_NAME`          | Your site name          | `StrapiSemanticSearch`          |
+
+**Note**: The remaining config options use hardcoded defaults in the plugin's `server/config/index.js`:
+
+- `contentTypes`: `[]` (no content types pre-configured)
+- `chunkSize`: `2000` characters
+- `chunkOverlap`: `200` characters
+- `similarityThreshold`: `0.7`
+
+### Method 2: Custom Configuration File
+
+For advanced configuration, you can override the plugin's default settings by creating a custom configuration file in your Strapi project:
+
+#### Create Custom Config File
+
+Create a file at `config/plugins.js` in your Strapi project:
+
+```javascript
+module.exports = ({ env }) => ({
+  "semantic-search": {
+    enabled: true,
+    resolve: "@thaon/strapi-plugin-semantic-search",
+    config: {
+      // Override default configuration
+      apiKey: env("OPENROUTER_API_KEY"),
+      model: env("OPENROUTER_MODEL", "openai/text-embedding-3-small"),
+      siteUrl: env("SITE_URL", "http://localhost:1337"),
+      siteName: env("SITE_NAME", "StrapiSemanticSearch"),
+      contentTypes: ["api::article.article", "api::page.page"], // Specify content types to index
+      chunkSize: 800, // Custom chunk size
+      chunkOverlap: 100, // Custom chunk overlap
+      similarityThreshold: 0.6, // Custom similarity threshold
+    },
+  },
+});
+```
+
+#### Configuration Options Explained
+
+The plugin's configuration is defined in `server/config/index.js` and includes the following options:
+
+| Option                | Type   | Description                                           | Default                         |
+| --------------------- | ------ | ----------------------------------------------------- | ------------------------------- |
+| `apiKey`              | string | Your OpenRouter API key (required)                    | -                               |
+| `model`               | string | Embedding model to use from OpenRouter                | `openai/text-embedding-3-small` |
+| `siteUrl`             | string | Your Strapi site URL                                  | `http://localhost:1337`         |
+| `siteName`            | string | Your site name for identification                     | `StrapiSemanticSearch`          |
+| `contentTypes`        | array  | Array of content type UIDs to enable indexing for     | `[]`                            |
+| `chunkSize`           | number | Maximum characters per document chunk                 | `2000`                          |
+| `chunkOverlap`        | number | Number of characters to overlap between chunks        | `200`                           |
+| `similarityThreshold` | number | Default similarity threshold (0-1) for search results | `0.7`                           |
+
+#### Configuration Structure
+
+The plugin's `server/config/index.js` defines this structure:
+
+```javascript
+module.exports = {
+  default: ({ env }) => ({
+    apiKey: env("OPENROUTER_API_KEY", ""),
+    model: env("OPENROUTER_MODEL", "openai/text-embedding-3-small"),
+    siteUrl: env("SITE_URL", "http://localhost:1337"),
+    siteName: env("SITE_NAME", "StrapiSemanticSearch"),
+    contentTypes: [],
+    chunkSize: 2000,
+    chunkOverlap: 200,
+    similarityThreshold: 0.7,
+  }),
+  validator: (config) => {
+    if (!config.apiKey) {
+      throw new Error("Semantic Search: OPENROUTER_API_KEY is required");
+    }
+  },
+};
+```
+
+#### Configuration Validation
+
+The plugin includes built-in validation that ensures:
+
+- `apiKey` is provided (throws error if missing)
+- All configuration values are of the correct type
+
+#### Accessing Configuration in Code
+
+You can access the plugin configuration in your services:
+
+```javascript
+const config = strapi.config.get("plugin::semantic-search");
+console.log(config.similarityThreshold); // 0.7 or custom value
+```
+
+#### Example: Environment-Specific Configuration
+
+You can use different configurations for different environments:
+
+```javascript
+module.exports = ({ env }) => ({
+  "semantic-search": {
+    enabled: true,
+    resolve: "@thaon/strapi-plugin-semantic-search",
+    config: {
+      apiKey: env("OPENROUTER_API_KEY"),
+      model: env("OPENROUTER_MODEL", "openai/text-embedding-3-small"),
+      siteUrl: env("SITE_URL", "http://localhost:1337"),
+      siteName: env("SITE_NAME", "StrapiSemanticSearch"),
+      // Development-specific settings
+      chunkSize: env("NODE_ENV") === "development" ? 300 : 800,
+      similarityThreshold: env("NODE_ENV") === "development" ? 0.5 : 0.7,
+    },
+  },
+});
+```
 
 ## How It Works
 
@@ -194,7 +307,6 @@ The plugin can be configured through environment variables:
 The plugin provides two main indexing functions:
 
 1. **Document Indexing** (`indexDocument`):
-
    - Retrieves a specific document by content type and ID
    - Extracts text content from specified field (e.g., 'content')
    - Splits text into chunks using configurable chunk size and overlap
