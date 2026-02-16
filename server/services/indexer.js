@@ -14,7 +14,7 @@ module.exports = ({ strapi }) => ({
     documentId,
     field,
     titleField = "title",
-    ownerId
+    ownerId,
   ) {
     if (!ownerId) {
       throw new Error("ownerId is required for indexing documents");
@@ -35,7 +35,7 @@ module.exports = ({ strapi }) => ({
       const textContent = document[field];
       if (!textContent) {
         throw new Error(
-          `Field "${field}" is empty or does not exist on document ${documentId}`
+          `Field "${field}" is empty or does not exist on document ${documentId}`,
         );
       }
 
@@ -68,7 +68,7 @@ module.exports = ({ strapi }) => ({
       }
 
       strapi.log.info(
-        `Semantic Search: Indexed ${textChunks.length} chunks for ${contentType}:${documentId}`
+        `Semantic Search: Indexed ${textChunks.length} chunks for ${contentType}:${documentId}`,
       );
 
       return {
@@ -79,7 +79,7 @@ module.exports = ({ strapi }) => ({
       };
     } catch (error) {
       strapi.log.error(
-        `Semantic Search: Indexing failed for ${contentType}:${documentId}: ${error.message}`
+        `Semantic Search: Indexing failed for ${contentType}:${documentId}: ${error.message}`,
       );
       throw error;
     }
@@ -97,7 +97,7 @@ module.exports = ({ strapi }) => ({
       });
 
     strapi.log.info(
-      `Semantic Search: Removed chunks for document ${documentId}`
+      `Semantic Search: Removed chunks for document ${documentId}`,
     );
     return { success: true, documentId, chunksRemoved: deleted.count || 0 };
   },
@@ -115,7 +115,7 @@ module.exports = ({ strapi }) => ({
     documentId,
     fields,
     titleField = "title",
-    ownerId
+    ownerId,
   ) {
     if (!ownerId) {
       throw new Error("ownerId is required for indexing documents");
@@ -145,7 +145,7 @@ module.exports = ({ strapi }) => ({
 
       if (!combinedText) {
         throw new Error(
-          `No content found in fields [${fields.join(", ")}] for document ${documentId}`
+          `No content found in fields [${fields.join(", ")}] for document ${documentId}`,
         );
       }
 
@@ -170,7 +170,7 @@ module.exports = ({ strapi }) => ({
       }
 
       strapi.log.info(
-        `Semantic Search: Indexed ${textChunks.length} chunks for ${contentType}:${documentId}`
+        `Semantic Search: Indexed ${textChunks.length} chunks for ${contentType}:${documentId}`,
       );
 
       return {

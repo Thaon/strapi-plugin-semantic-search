@@ -7,8 +7,8 @@ module.exports = {
     siteUrl: env("SITE_URL", "http://localhost:1337"),
     siteName: env("SITE_NAME", "StrapiSemanticSearch"),
     contentTypes: [],
-    chunkSize: 500,
-    chunkOverlap: 50,
+    chunkSize: 2000,
+    chunkOverlap: 200,
     similarityThreshold: 0.7,
   }),
   validator: (config) => {

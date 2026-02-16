@@ -18,7 +18,7 @@ module.exports = ({ strapi }) => ({
     const contentType = options.contentType || null;
 
     console.log(
-      `[Semantic Search] Query: "${userQuery}" | Owner: ${ownerId} | Threshold: ${similarityThreshold}`
+      `[Semantic Search] Query: "${userQuery}" | Owner: ${ownerId} | Threshold: ${similarityThreshold}`,
     );
 
     // 1. Convert the search string into a vector
@@ -32,10 +32,10 @@ module.exports = ({ strapi }) => ({
 
     const storedChunks = await strapi.db
       .query("plugin::semantic-search.chunk")
-      .findMany({ where: whereClause });
+      .findMany({ where: whereClause, limit: 10000 });
 
     console.log(
-      `[Semantic Search] Found ${storedChunks.length} chunks for owner ${ownerId}`
+      `[Semantic Search] Found ${storedChunks.length} chunks for owner ${ownerId}`,
     );
 
     // 3. Perform Cosine Similarity calculation and rank results
@@ -59,7 +59,7 @@ module.exports = ({ strapi }) => ({
       .sort((a, b) => b.score - a.score);
 
     console.log(
-      `[Semantic Search] Results after threshold filter: ${filteredResults.length}`
+      `[Semantic Search] Results after threshold filter: ${filteredResults.length}`,
     );
 
     // 4. Deduplicate by document ID - keep best scoring chunk per document
@@ -102,7 +102,7 @@ module.exports = ({ strapi }) => ({
         } else {
           // Document not found or no content, use chunk content
           console.log(
-            `[Semantic Search] Using chunk content as fallback for doc ${docId}`
+            `[Semantic Search] Using chunk content as fallback for doc ${docId}`,
           );
           resultsWithFullContent.push({
             documentId: docId,
@@ -116,7 +116,7 @@ module.exports = ({ strapi }) => ({
       } catch (error) {
         console.error(
           `[Semantic Search] Error fetching doc ${docId}:`,
-          error.message
+          error.message,
         );
         resultsWithFullContent.push({
           documentId: docId,
@@ -130,7 +130,7 @@ module.exports = ({ strapi }) => ({
     }
 
     console.log(
-      `[Semantic Search] Unique documents returned: ${resultsWithFullContent.length}`
+      `[Semantic Search] Unique documents returned: ${resultsWithFullContent.length}`,
     );
 
     return resultsWithFullContent;
