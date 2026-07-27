@@ -1,6 +1,6 @@
 {
   "name": "@thaon/strapi-plugin-semantic-search",
-  "version": "1.0.8",
+  "version": "1.1.0",
   "description": "A Strapi plugin that adds semantic search capabilities using OpenRouter embeddings",
   "main": "strapi-server.js",
   "strapi": {
@@ -36,7 +36,7 @@
     "npm": ">=6.0.0"
   },
   "dependencies": {
-    "@openrouter/sdk": "latest"
+    "@openrouter/sdk": "^1.1.8"
   },
   "peerDependencies": {
     "@strapi/strapi": ">=4.0.0"

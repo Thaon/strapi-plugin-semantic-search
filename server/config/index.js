@@ -10,6 +10,8 @@ module.exports = {
     chunkSize: 2000,
     chunkOverlap: 200,
     similarityThreshold: 0.7,
+    docContentType: "api::doc.doc",
+    docContentField: "content",
   }),
   validator: (config) => {
     if (!config.apiKey) {

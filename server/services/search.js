@@ -17,6 +17,10 @@ module.exports = ({ strapi }) => ({
       options.threshold || config.similarityThreshold || 0.5;
     const contentType = options.contentType || null;
 
+    // Configurable content type for fetching full document content
+    const docContentType = config.docContentType || "api::doc.doc";
+    const docContentField = config.docContentField || "content";
+
     console.log(
       `[Semantic Search] Query: "${userQuery}" | Owner: ${ownerId} | Threshold: ${similarityThreshold}`,
     );
@@ -81,12 +85,10 @@ module.exports = ({ strapi }) => ({
     const resultsWithFullContent = [];
 
     for (const docId of uniqueDocIds) {
-      // Get the best scoring chunk for this document
       const bestChunk = docBestChunks.get(docId);
 
-      // Fetch the full document content
       try {
-        const doc = await strapi.db.query("api::doc.doc").findOne({
+        const doc = await strapi.db.query(docContentType).findOne({
           where: { documentId: docId },
         });
 
@@ -95,15 +97,11 @@ module.exports = ({ strapi }) => ({
             documentId: docId,
             title: bestChunk.title || doc.title,
             textSnippet: bestChunk.textSnippet,
-            fullContent: doc.content,
+            fullContent: doc[docContentField],
             contentType: bestChunk.contentType,
             score: bestChunk.score,
           });
         } else {
-          // Document not found or no content, use chunk content
-          console.log(
-            `[Semantic Search] Using chunk content as fallback for doc ${docId}`,
-          );
           resultsWithFullContent.push({
             documentId: docId,
             title: bestChunk.title,
