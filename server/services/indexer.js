@@ -143,6 +143,29 @@ module.exports = ({ strapi }) => {
     },
 
     /**
+     * Remove all indexed chunks for a specific document and owner
+     * @param {string} documentId - The document ID to remove from index
+     * @param {number} ownerId - The owner whose chunks should be removed
+     */
+    async removeDocumentForOwner(documentId, ownerId) {
+      const deleted = await chunkTable().deleteMany({
+        where: { parentDocId: documentId, owner: ownerId },
+      });
+
+      cache().invalidate(ownerId);
+
+      strapi.log.info(
+        `Semantic Search: Removed chunks for document ${documentId} (owner ${ownerId})`,
+      );
+      return {
+        success: true,
+        documentId,
+        ownerId,
+        chunksRemoved: deleted.count || 0,
+      };
+    },
+
+    /**
      * Index multiple fields from a document
      * @param {string} contentType - The content type UID
      * @param {string} documentId - The document ID
