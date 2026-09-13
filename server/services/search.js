@@ -1,5 +1,17 @@
 "use strict";
 
+/**
+ * @param {number[]} vector
+ */
+function normalizeQueryVector(vector) {
+  let norm = 0;
+  for (let i = 0; i < vector.length; i++) norm += vector[i] * vector[i];
+  norm = Math.sqrt(norm) || 1;
+  const out = new Float32Array(vector.length);
+  for (let i = 0; i < vector.length; i++) out[i] = vector[i] / norm;
+  return out;
+}
+
 module.exports = ({ strapi }) => ({
   async querySearch(userQuery, options = {}) {
     const { ownerId } = options;
@@ -8,9 +20,9 @@ module.exports = ({ strapi }) => ({
       throw new Error("ownerId is required for semantic search");
     }
 
+    const totalStart = Date.now();
     const config = strapi.config.get("plugin::semantic-search");
-    const { embedding, vector: vectorMath } =
-      strapi.plugin("semantic-search").services;
+    const { embedding, chunkCache } = strapi.plugin("semantic-search").services;
 
     const limit = options.limit || 5;
     const similarityThreshold =
@@ -25,110 +37,105 @@ module.exports = ({ strapi }) => ({
       `[Semantic Search] Query: "${userQuery}" | Owner: ${ownerId} | Threshold: ${similarityThreshold}`,
     );
 
-    // 1. Convert the search string into a vector
-    const queryVector = await embedding.generate(userQuery);
+    // 1 + 2. Embed the query and load the owner's chunks (cached) in parallel
+    const embedStart = Date.now();
+    const [rawQueryVector, store] = await Promise.all([
+      embedding.generate(userQuery),
+      chunkCache.getForOwner(ownerId),
+    ]);
+    console.log(
+      `[Semantic Search] Embedding + cache: ${Date.now() - embedStart} ms (${store.count} chunks for owner ${ownerId}${contentType ? `, filter: ${contentType}` : ""})`,
+    );
 
-    // 2. Retrieve stored chunks, filtered by owner and optionally by content type
-    const whereClause = { owner: ownerId };
-    if (contentType) {
-      whereClause.parentType = contentType;
+    const { matrix, metas, dims } = store;
+
+    // 3. Score = cosine similarity via dot product on pre-normalized vectors
+    const scoreStart = Date.now();
+    /** @type {{ id: string, title: string, textSnippet: string, contentType: string, score: number }[]} */
+    const scoredResults = [];
+
+    if (dims && rawQueryVector?.length === dims) {
+      const queryVector = normalizeQueryVector(rawQueryVector);
+
+      for (let i = 0; i < metas.length; i++) {
+        if (contentType && metas[i].parentType !== contentType) continue;
+
+        const offset = i * dims;
+        let dot = 0;
+        for (let d = 0; d < dims; d++) {
+          dot += queryVector[d] * matrix[offset + d];
+        }
+
+        scoredResults.push({
+          id: metas[i].parentDocId,
+          title: metas[i].title,
+          textSnippet: metas[i].content,
+          contentType: metas[i].parentType,
+          score: dot,
+        });
+      }
+    } else if (dims) {
+      console.warn(
+        `[Semantic Search] Query vector dims (${rawQueryVector?.length}) != chunk dims (${dims}) — returning no results. Re-index the corpus to realign embeddings.`,
+      );
     }
 
-    const storedChunks = await strapi.db
-      .query("plugin::semantic-search.chunk")
-      .findMany({ where: whereClause, limit: 10000 });
-
-    console.log(
-      `[Semantic Search] Found ${storedChunks.length} chunks for owner ${ownerId}`,
-    );
-
-    // 3. Perform Cosine Similarity calculation and rank results
-    const scoredResults = storedChunks.map((chunk) => ({
-      id: chunk.parentDocId,
-      title: chunk.titleReference,
-      textSnippet: chunk.content,
-      contentType: chunk.parentType,
-      score: vectorMath.cosineSimilarity(queryVector, chunk.embedding),
-    }));
-
-    // Log top scores for debugging
+    // Single sort, then threshold filter (order preserved)
+    scoredResults.sort((a, b) => b.score - a.score);
     const topScores = scoredResults
-      .sort((a, b) => b.score - a.score)
       .slice(0, 10)
       .map((r) => `${r.title}: ${(r.score * 100).toFixed(1)}%`);
-    console.log(`[Semantic Search] Top scores: ${topScores.join(", ")}`);
-
-    const filteredResults = scoredResults
-      .filter((res) => res.score > similarityThreshold)
-      .sort((a, b) => b.score - a.score);
-
-    console.log(
-      `[Semantic Search] Results after threshold filter: ${filteredResults.length}`,
+    const filteredResults = scoredResults.filter(
+      (res) => res.score > similarityThreshold,
     );
 
-    // 4. Deduplicate by document ID - keep best scoring chunk per document
+    console.log(
+      `[Semantic Search] Scoring: ${Date.now() - scoreStart} ms | Top scores: ${topScores.join(", ") || "-"} | After threshold filter: ${filteredResults.length}`,
+    );
+
+    // 4. Deduplicate by document ID — sorted order means the first hit per
+    // document is its best-scoring chunk
     const docBestChunks = new Map();
     for (const result of filteredResults) {
-      if (
-        !docBestChunks.has(result.id) ||
-        docBestChunks.get(result.id).score < result.score
-      ) {
+      if (!docBestChunks.has(result.id)) {
         docBestChunks.set(result.id, result);
       }
     }
 
-    // Sort by score and apply limit AFTER deduplication
-    const uniqueDocIds = [...docBestChunks.keys()]
-      .sort((a, b) => docBestChunks.get(b).score - docBestChunks.get(a).score)
-      .slice(0, limit);
+    const uniqueDocIds = [...docBestChunks.keys()].slice(0, limit);
 
-    const resultsWithFullContent = [];
-
-    for (const docId of uniqueDocIds) {
-      const bestChunk = docBestChunks.get(docId);
-
+    // 5. Hydrate full document content in a single query
+    const hydrateStart = Date.now();
+    let docsById = new Map();
+    if (uniqueDocIds.length) {
       try {
-        const doc = await strapi.db.query(docContentType).findOne({
-          where: { documentId: docId },
+        const docs = await strapi.db.query(docContentType).findMany({
+          where: { documentId: { $in: uniqueDocIds } },
         });
-
-        if (doc) {
-          resultsWithFullContent.push({
-            documentId: docId,
-            title: bestChunk.title || doc.title,
-            textSnippet: bestChunk.textSnippet,
-            fullContent: doc[docContentField],
-            contentType: bestChunk.contentType,
-            score: bestChunk.score,
-          });
-        } else {
-          resultsWithFullContent.push({
-            documentId: docId,
-            title: bestChunk.title,
-            textSnippet: bestChunk.textSnippet,
-            fullContent: bestChunk.textSnippet,
-            contentType: bestChunk.contentType,
-            score: bestChunk.score,
-          });
-        }
+        docsById = new Map(docs.map((d) => [d.documentId, d]));
       } catch (error) {
         console.error(
-          `[Semantic Search] Error fetching doc ${docId}:`,
-          error.message,
+          `[Semantic Search] Error fetching docs:`,
+          error instanceof Error ? error.message : error,
         );
-        resultsWithFullContent.push({
-          documentId: docId,
-          title: bestChunk.title,
-          textSnippet: bestChunk.textSnippet,
-          fullContent: bestChunk.textSnippet,
-          contentType: bestChunk.contentType,
-          score: bestChunk.score,
-        });
       }
     }
 
+    const resultsWithFullContent = uniqueDocIds.map((docId) => {
+      const bestChunk = docBestChunks.get(docId);
+      const doc = docsById.get(docId);
+      return {
+        documentId: docId,
+        title: bestChunk.title || doc?.title,
+        textSnippet: bestChunk.textSnippet,
+        fullContent: doc ? doc[docContentField] : bestChunk.textSnippet,
+        contentType: bestChunk.contentType,
+        score: bestChunk.score,
+      };
+    });
+
     console.log(
-      `[Semantic Search] Unique documents returned: ${resultsWithFullContent.length}`,
+      `[Semantic Search] Hydration: ${Date.now() - hydrateStart} ms | Total: ${Date.now() - totalStart} ms | Unique documents returned: ${resultsWithFullContent.length}`,
     );
 
     return resultsWithFullContent;
