@@ -37,14 +37,23 @@ module.exports = ({ strapi }) => ({
       `[Semantic Search] Query: "${userQuery}" | Owner: ${ownerId} | Threshold: ${similarityThreshold}`,
     );
 
-    // 1 + 2. Embed the query and load the owner's chunks (cached) in parallel
+    // 2. Load the owner's chunks (cached) — skip the embedding call entirely
+    // when there is nothing indexed for this owner
+    const cacheStart = Date.now();
+    const store = await chunkCache.getForOwner(ownerId);
+
+    if (store.count === 0) {
+      console.log(
+        `[Semantic Search] No chunks for owner ${ownerId} — skipping embedding (cache: ${Date.now() - cacheStart} ms)`,
+      );
+      return [];
+    }
+
+    // 1. Embed the query
     const embedStart = Date.now();
-    const [rawQueryVector, store] = await Promise.all([
-      embedding.generate(userQuery),
-      chunkCache.getForOwner(ownerId),
-    ]);
+    const rawQueryVector = await embedding.generate(userQuery);
     console.log(
-      `[Semantic Search] Embedding + cache: ${Date.now() - embedStart} ms (${store.count} chunks for owner ${ownerId}${contentType ? `, filter: ${contentType}` : ""})`,
+      `[Semantic Search] Embedding: ${Date.now() - embedStart} ms (${store.count} chunks for owner ${ownerId}${contentType ? `, filter: ${contentType}` : ""})`,
     );
 
     const { matrix, metas, dims } = store;
